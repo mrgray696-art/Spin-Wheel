@@ -1,4 +1,4 @@
-import os, platform, random, math, json, vdf
+import os,platform,random,math,json,vdf
 import tkinter as tk
 
 BG_COLOR = "#121212"
@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
 
 def get_steam_path():
     system = platform.system()
+    # 32 bit registry fix (in case someone is using 32 bit windows, unlikely but just in case.)
     if system == "Windows":
         import winreg
         try:
@@ -35,7 +36,12 @@ def get_steam_path():
             path,_ = winreg.QueryValueEx(key,"InstallPath")
             return path
         except FileNotFoundError:
-            return r"C:\Program Files (x86)\Steam"
+            try:
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\Valve\Steam")
+                path,_ = winreg.QueryValueEx(key,"InstallPath")
+                return path
+            except FileNotFoundError:
+                return r"C:\Program Files (x86)\Steam"
     elif system == "Linux":
         return os.path.expanduser("~/.local/share/Steam")
     elif system == "Darwin":
@@ -167,10 +173,17 @@ class SpinWheelApp(tk.Tk):
         for i,game in enumerate(self.all_games):
             lb.insert(tk.END,game)
             if game not in self.excluded_games: lb.select_set(i)
+        # Prevent invalid save logic - just in case
         def save():
-            self.excluded_games = set(self.all_games)-set(lb.get(i) for i in lb.curselection())
+            try:
+                for k,var in vars_dict.items():
+                    self.cfg[k] = var.get()
+            except tk.TclError:
+                print("Invalid! Please use numeric valid numbers.")
+                return
             self.save_data()
-            self.update_filtered_games()
+            self.redraw_everything()
+            self.center_window()
             win.destroy()
         tk.Button(win,text="Save Filters",command=save,bg=BTN_BG,fg=BTN_FG,font=("Helvetica",11,"bold"),borderwidth=0,padx=10,pady=5).pack(pady=15)
 
@@ -213,21 +226,36 @@ class SpinWheelApp(tk.Tk):
     def draw_wheel(self):
         self.canvas.delete("wheel")
         num_games = len(self.filtered_games)
-        arc_angle = 360/num_games
+        
+        # JUST in case there are no games installed - error handling.
+        if num_games == 0:
+            return
+            
+        arc_angle = 360 / num_games
         ws = int(self.cfg["wheel_size"])
-        cx,cy = ws/2,ws/2
-        r = ws*(250/600)
+        cx, cy = ws / 2, ws / 2
+        r = ws * (250 / 600)
         colors = [c.strip() for c in str(self.cfg["available_wheel_colors"]).split(",")]
-        for i,game in enumerate(self.filtered_games):
-            start_angle = self.angle_offset+i*arc_angle
-            col = colors[i%len(colors)]
-            self.canvas.create_arc(cx-r,cy-r,cx+r,cy+r,start=start_angle,extent=arc_angle,fill=col,outline="",tags="wheel")
-            mid_angle = start_angle+arc_angle/2
-            r_text = r-25 
-            tx = cx+r_text*math.cos(math.radians(mid_angle))
-            ty = cy-r_text*math.sin(math.radians(mid_angle)) 
-            name = game[:18]+".." if len(game)>18 else game
-            self.canvas.create_text(tx,ty,text=name,font=(self.cfg["wheel_text_font"],int(self.cfg["wheel_text_size"]),"bold"),fill=self.cfg["wheel_text_color"],angle=(mid_angle+180)%360,anchor="w",tags="wheel")
+        
+        for i, game in enumerate(self.filtered_games):
+            start_angle = self.angle_offset + i * arc_angle
+            
+            color_idx = i % len(colors)
+            # Last slice could be the same color as the first slice.. this prevents that.
+            if i == num_games - 1 and color_idx == 0 and num_games > 1:
+                color_idx = 1 % len(colors)
+                
+            col = colors[color_idx]
+            self.canvas.create_arc(cx - r, cy - r, cx + r, cy + r, start=start_angle, extent=arc_angle, fill=col, outline="", tags="wheel")
+            
+            mid_angle = start_angle + arc_angle / 2
+            r_text = r - 25 
+            tx = cx + r_text * math.cos(math.radians(mid_angle))
+            ty = cy - r_text * math.sin(math.radians(mid_angle)) 
+            
+            name = game[:18] + ".." if len(game) > 18 else game
+            self.canvas.create_text(tx, ty, text=name, font=(self.cfg["wheel_text_font"], int(self.cfg["wheel_text_size"]), "bold"), fill=self.cfg["wheel_text_color"], angle=(mid_angle + 180) % 360, anchor="w", tags="wheel")
+            
         self.canvas.tag_lower("wheel")
 
     def create_rounded_rect(self,x1,y1,x2,y2,radius,**kwargs):
@@ -279,15 +307,21 @@ class SpinWheelApp(tk.Tk):
         target_rotation = random.randint(1800,3000)
         self.animate_spin(target=target_rotation,current=0,speed=45)
 
-    def animate_spin(self,target,current,speed):
-        if current<target:
-            self.angle_offset = (self.angle_offset+speed)%360
+    def animate_spin(self, target, current, speed):
+        # Decelerate wheel instead of immediatley stopping it.
+        if current < target:
+            remaining_distance = target - current
+            speed = min(45.0, remaining_distance / 25.0)
+            
+            speed = max(0.5, speed)
+            
+            self.angle_offset = (self.angle_offset + speed) % 360
             self.draw_wheel()
             self.canvas.tag_raise("pointer")
+            
             current += speed
-            if (target-current)<600:
-                speed = max(1,speed-1)
-            self.after(20,self.animate_spin,target,current,speed)
+            
+            self.after(20, self.animate_spin, target, current, speed)
         else:
             self.is_spinning = False
             self.announce_winner()
