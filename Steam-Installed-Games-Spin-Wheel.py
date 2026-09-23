@@ -177,15 +177,10 @@ class SpinWheelApp(tk.Tk):
             if game not in self.excluded_games: lb.select_set(i)
         # Prevent invalid save logic - just in case
         def save():
-            try:
-                for k,var in vars_dict.items():
-                    self.cfg[k] = var.get()
-            except tk.TclError:
-                print("Invalid! Please use numeric valid numbers.")
-                return
+            selected_games = {self.all_games[i] for i in lb.curselection()}
+            self.excluded_games = set(self.all_games) - selected_games
             self.save_data()
-            self.redraw_everything()
-            self.center_window()
+            self.update_filtered_games()
             win.destroy()
         tk.Button(win,text="Save Filters",command=save,bg=BTN_BG,fg=BTN_FG,font=("Helvetica",11,"bold"),borderwidth=0,padx=10,pady=5).pack(pady=15)
 
