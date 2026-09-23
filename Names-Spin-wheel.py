@@ -1,8 +1,9 @@
 import tkinter as tk
 import json, math, random, os
 
-NAMES_FILE = "names.json"
-SETTINGS_FILE = "settings.json"
+NAMES_FILE = "Names.json"
+SETTINGS_FILE = "Names-Settings.json"
+
 DEFAULT_NAMES = ["SETH","CHAD"]
 DEFAULT_SETTINGS = {"theme": "Dark","themes": {"Light":{"bg":"#777777","fg":"#000000","wheel_colors":["#FF9999","#99CCFF","#99FF99","#FFCC99","#CC99FF"]},"Dark":{"bg":"#2b2b2b","fg":"#ffffff","wheel_colors":["#d32f2f","#1976d2","#388e3c","#f57c00","#7b1fa2"]},"Hacker":{"bg":"#000000","fg":"#00ff00","wheel_colors":["#003300","#004400","#005500","#006600","#007700"]}}}
 

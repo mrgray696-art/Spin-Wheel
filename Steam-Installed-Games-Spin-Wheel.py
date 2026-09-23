@@ -1,6 +1,9 @@
 import os,platform,random,math,json,vdf
 import tkinter as tk
 
+EXCLUDED_GAMES_FILE = "Games.json"
+SETTINGS_FILE = "Steam-Settings.json"
+
 BG_COLOR = "#121212"
 PANEL_COLOR = "#1E1E1E"
 TEXT_COLOR = "#FFFFFF"
@@ -28,7 +31,6 @@ DEFAULT_CONFIG = {
 
 def get_steam_path():
     system = platform.system()
-    # 32 bit registry fix (in case someone is using 32 bit windows, unlikely but just in case.)
     if system == "Windows":
         import winreg
         try:
@@ -89,8 +91,8 @@ class SpinWheelApp(tk.Tk):
         self.excluded_games = set()
         self.is_spinning = False
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.settings_file = os.path.join(self.base_dir,"excluded_games.json")
-        self.visual_file = os.path.join(self.base_dir,"visual_settings.json")
+        self.settings_file = os.path.join(self.base_dir,EXCLUDED_GAMES_FILE)
+        self.visual_file = os.path.join(self.base_dir,SETTINGS_FILE)
         self.load_data()
         self.canvas = tk.Canvas(self,bg=BG_COLOR,highlightthickness=0)
         self.canvas.pack(pady=(40,0))
